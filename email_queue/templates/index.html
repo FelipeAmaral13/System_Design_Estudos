@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loja — Finalizar Pedido</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .container { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 20px; }
+
+    h1 { font-size: 20px; font-weight: 600; color: #111; }
+    h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #555; margin-bottom: 12px; }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid #e5e5e5;
+    }
+
+    /* Campos do cliente */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field label { font-size: 13px; font-weight: 500; color: #444; }
+    .field input {
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: #555; }
+    .field input.erro { border-color: #c62828; background: #fff8f8; }
+    .field-erro { font-size: 12px; color: #c62828; margin-top: 2px; display: none; }
+    .field-erro.visivel { display: block; }
+
+    /* Catálogo de itens */
+    .catalog { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+    .item-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fafafa;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .12s, border-color .12s;
+      text-align: left;
+    }
+    .item-btn:hover { background: #f0f0f0; border-color: #bbb; }
+    .item-btn .nome { font-weight: 500; }
+    .item-btn .preco { color: #555; font-size: 12px; }
+
+    /* Carrinho */
+    .carrinho-lista { list-style: none; display: flex; flex-direction: column; gap: 6px; min-height: 48px; }
+    .carrinho-lista li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      padding: 6px 10px;
+      background: #f7f7f7;
+      border-radius: 6px;
+    }
+    .carrinho-lista li button {
+      background: none; border: none; cursor: pointer;
+      color: #999; font-size: 16px; line-height: 1; padding: 0 4px;
+    }
+    .carrinho-lista li button:hover { color: #c00; }
+    .carrinho-vazio { font-size: 13px; color: #aaa; padding: 10px 0; }
+
+    .total-linha {
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 600;
+      padding-top: 14px;
+      border-top: 1px solid #eee;
+      margin-top: 10px;
+    }
+
+    .btn-finalizar {
+      width: 100%;
+      padding: 13px;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+      margin-top: 16px;
+    }
+    .btn-finalizar:hover:not(:disabled) { background: #333; }
+    .btn-finalizar:disabled { opacity: .45; cursor: not-allowed; }
+
+    /* Status SSE */
+    #status-card { display: none; }
+    .status-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .status-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .status-icon.na_fila    { background: #f0f0f0; }
+    .status-icon.processando{ background: #fff8e1; }
+    .status-icon.enviado    { background: #e8f5e9; }
+    .status-icon.falha      { background: #fdecea; }
+    .status-icon.timeout    { background: #f0f0f0; }
+
+    .status-textos { flex: 1; }
+    .status-titulo { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .status-detalhe { font-size: 13px; color: #555; }
+    .status-pedido-id { font-size: 11px; color: #aaa; margin-top: 6px; font-family: monospace; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid #ddd;
+      border-top-color: #888;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-novo {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #555;
+      background: none;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .btn-novo:hover { background: #f5f5f5; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Finalizar Pedido</h1>
+
+  <!-- Dados do cliente -->
+  <div class="card" id="card-cliente">
+    <h2>Seus dados</h2>
+    <div class="field">
+      <label for="nome">Nome</label>
+      <input id="nome" type="text" placeholder="João Silva" value="Felipe Souza"
+             oninput="limparErro('nome')">
+      <span class="field-erro" id="erro-nome">Preencha seu nome.</span>
+    </div>
+    <div class="field">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" placeholder="joao@email.com" value="felipe@email.com"
+             oninput="limparErro('email')">
+      <span class="field-erro" id="erro-email">Digite um e-mail válido (ex: voce@email.com).</span>
+    </div>
+  </div>
+
+  <!-- Catálogo -->
+  <div class="card">
+    <h2>Adicionar itens</h2>
+    <div class="catalog" id="catalog"></div>
+  </div>
+
+  <!-- Carrinho -->
+  <div class="card">
+    <h2>Carrinho</h2>
+    <ul class="carrinho-lista" id="carrinho-lista">
+      <li class="carrinho-vazio" id="carrinho-vazio">Nenhum item adicionado.</li>
+    </ul>
+    <div class="total-linha">
+      <span>Total</span>
+      <span id="total">R$ 0,00</span>
+    </div>
+    <button class="btn-finalizar" id="btn-finalizar" onclick="finalizarPedido()">
+      Finalizar pedido
+    </button>
+  </div>
+
+  <!-- Status em tempo real -->
+  <div class="card" id="status-card">
+    <h2>Status do pedido</h2>
+    <div class="status-inner">
+      <div class="status-icon" id="status-icon">⏳</div>
+      <div class="status-textos">
+        <div class="status-titulo" id="status-titulo">Aguardando...</div>
+        <div class="status-detalhe" id="status-detalhe"></div>
+        <div class="status-pedido-id" id="status-pedido-id"></div>
+      </div>
+    </div>
+    <button class="btn-novo" onclick="novoPedido()">Fazer novo pedido</button>
+  </div>
+</div>
+
+<script>
+  // ------------------------------------------------------------------
+  // Catálogo de produtos
+  // ------------------------------------------------------------------
+  const PRODUTOS = [
+    { nome: "Tênis Nike",          preco: 349.90 },
+    { nome: "Meia esportiva",      preco: 19.90  },
+    { nome: "Python Fluente",      preco: 89.00  },
+    { nome: "Camiseta básica",     preco: 59.90  },
+    { nome: "Fone Bluetooth",      preco: 199.00 },
+    { nome: "Garrafa térmica",     preco: 79.90  },
+  ];
+
+  let carrinho = [];   // [{nome, preco}]
+
+  function renderCatalog() {
+    const el = document.getElementById("catalog");
+    el.innerHTML = PRODUTOS.map((p, i) => `
+      <button class="item-btn" onclick="addItem(${i})">
+        <span class="nome">${p.nome}</span>
+        <span class="preco">R$ ${p.preco.toFixed(2).replace(".", ",")}</span>
+      </button>
+    `).join("");
+  }
+
+  function addItem(idx) {
+    carrinho.push({ ...PRODUTOS[idx] });
+    renderCarrinho();
+  }
+
+  function removeItem(idx) {
+    carrinho.splice(idx, 1);
+    renderCarrinho();
+  }
+
+  function renderCarrinho() {
+    const lista = document.getElementById("carrinho-lista");
+    const vazio = document.getElementById("carrinho-vazio");
+    const totalEl = document.getElementById("total");
+
+    if (carrinho.length === 0) {
+      lista.innerHTML = '<li class="carrinho-vazio" id="carrinho-vazio">Nenhum item adicionado.</li>';
+      totalEl.textContent = "R$ 0,00";
+      return;
+    }
+
+    lista.innerHTML = carrinho.map((item, i) => `
+      <li>
+        <span>${item.nome}</span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <span>R$ ${item.preco.toFixed(2).replace(".", ",")}</span>
+          <button onclick="removeItem(${i})" title="Remover">×</button>
+        </span>
+      </li>
+    `).join("");
+
+    const total = carrinho.reduce((s, i) => s + i.preco, 0);
+    totalEl.textContent = "R$ " + total.toFixed(2).replace(".", ",");
+  }
+
+  // ------------------------------------------------------------------
+  // Finalizar pedido — POST + abre SSE
+  // ------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // Validação de campos
+  // ------------------------------------------------------------------
+  const RE_EMAIL = /^[\w.+\-]+@[\w\-]+\.[a-z]{2,}(\.[a-z]{2,})*$/i;
+
+  function marcarErro(campo) {
+    document.getElementById(campo).classList.add("erro");
+    document.getElementById(`erro-${campo}`).classList.add("visivel");
+  }
+
+  function limparErro(campo) {
+    document.getElementById(campo).classList.remove("erro");
+    document.getElementById(`erro-${campo}`).classList.remove("visivel");
+  }
+
+  function validarFormulario(nome, email) {
+    let valido = true;
+    if (!nome) { marcarErro("nome");  valido = false; }
+    if (!RE_EMAIL.test(email)) { marcarErro("email"); valido = false; }
+    return valido;
+  }
+
+  async function finalizarPedido() {
+    const nome  = document.getElementById("nome").value.trim();
+    const email = document.getElementById("email").value.trim();
+
+    if (!validarFormulario(nome, email)) return;
+
+    if (carrinho.length === 0) {
+      alert("Adicione pelo menos um item ao carrinho.");
+      return;
+    }
+
+    const btn = document.getElementById("btn-finalizar");
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    const total = carrinho.reduce((s, i) => s + i.preco, 0);
+
+    const resp = await fetch("/pedido", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cliente_nome:  nome,
+        cliente_email: email,
+        itens:         carrinho.map(i => i.nome),
+        valor_total:   total,
+      }),
+    });
+
+    const { pedido_id } = await resp.json();
+    abrirSSE(pedido_id);
+  }
+
+  // ------------------------------------------------------------------
+  // SSE — escuta atualizações do servidor em tempo real
+  // ------------------------------------------------------------------
+  const STATUS_CONFIG = {
+    na_fila:     { icon: "🕐", titulo: "Na fila",        cor: "#888" },
+    processando: { icon: "⏳", titulo: "Processando",    cor: "#b8860b" },
+    enviado:     { icon: "✅", titulo: "E-mail enviado", cor: "#2e7d32" },
+    falha:       { icon: "❌", titulo: "Falha no processamento", cor: "#c62828" },
+    timeout:     { icon: "⚠️", titulo: "Timeout",        cor: "#888" },
+  };
+
+  function abrirSSE(pedidoId) {
+    document.getElementById("status-card").style.display = "block";
+    document.getElementById("status-pedido-id").textContent = pedidoId;
+    document.getElementById("card-cliente").style.opacity = ".4";
+    document.getElementById("card-cliente").style.pointerEvents = "none";
+
+    setStatus("na_fila", "Pedido recebido, aguardando processamento...");
+
+    const es = new EventSource(`/status/${pedidoId}`);
+
+    es.onmessage = (e) => {
+      const { status, detalhe } = JSON.parse(e.data);
+      setStatus(status, detalhe);
+      if (status === "enviado" || status === "falha" || status === "timeout") {
+        es.close();
+      }
+    };
+
+    es.onerror = () => {
+      es.close();
+      setStatus("timeout", "Conexão interrompida.");
+    };
+  }
+
+  function setStatus(status, detalhe) {
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.timeout;
+    const iconEl   = document.getElementById("status-icon");
+    const tituloEl = document.getElementById("status-titulo");
+    const detalheEl= document.getElementById("status-detalhe");
+
+    iconEl.className = `status-icon ${status}`;
+    iconEl.textContent = status === "processando"
+      ? ""   // spinner via CSS abaixo
+      : cfg.icon;
+
+    if (status === "processando") {
+      iconEl.innerHTML = '<span class="spinner"></span>';
+    }
+
+    tituloEl.textContent = cfg.titulo;
+    tituloEl.style.color = cfg.cor;
+
+    if (status === "falha") {
+      detalheEl.innerHTML = `
+        <div style="margin-top:8px;padding:10px 12px;background:#fdecea;border:1px solid #f5c6c6;border-radius:8px;color:#c62828;font-size:13px;">
+          ${detalhe || "Não foi possível processar o pedido."}
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:#888;">
+          O pedido foi movido para a fila de erros (DLQ) e pode ser investigado manualmente.
+        </div>`;
+    } else {
+      detalheEl.textContent = detalhe;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Novo pedido
+  // ------------------------------------------------------------------
+  function novoPedido() {
+    carrinho = [];
+    renderCarrinho();
+
+    // Esconde status e restaura formulário
+    document.getElementById("status-card").style.display = "none";
+    document.getElementById("card-cliente").style.opacity = "1";
+    document.getElementById("card-cliente").style.pointerEvents = "auto";
+
+    // Limpa erros de validação anteriores
+    ["nome", "email"].forEach(campo => limparErro(campo));
+
+    // Reabilita botão
+    const btn = document.getElementById("btn-finalizar");
+    btn.disabled = false;
+    btn.textContent = "Finalizar pedido";
+  }
+
+  // ------------------------------------------------------------------
+  // Init
+  // ------------------------------------------------------------------
+  renderCatalog();
+</script>
+</body>
+</html>
